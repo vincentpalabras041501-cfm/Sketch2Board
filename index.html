@@ -3493,9 +3493,19 @@ $('#tutNext').addEventListener('click', () => {
 });
 
 /* Update message: the page that registers the service worker calls this */
-window.s2bUpdateReady = function () { const b = $('#updateBar'); if (b) b.hidden = false; };
-$('#updateBar').addEventListener('click', () => location.reload());
+/* PWA update prompt */
+window.s2bUpdateReady = function () {
+  const b = $('#updateBar');
+  if (b) b.hidden = false;
+};
 
+$('#updateBar').addEventListener('click', () => {
+  if (window.s2bWaitingWorker) {
+    window.s2bWaitingWorker.postMessage({
+      type: 'SKIP_WAITING'
+    });
+  }
+});
 /* =====================================================================
    Start
    ===================================================================== */
@@ -3516,17 +3526,69 @@ setTimeout(() => {
 }, 1200);
 
 </script>
-  <script>
-    // Offline support and update message (needs https, or localhost)
-    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-      var hadController = !!navigator.serviceWorker.controller;
-      navigator.serviceWorker.addEventListener('controllerchange', function () {
-        if (hadController && window.s2bUpdateReady) window.s2bUpdateReady();
-      });
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('sw.js').catch(function () { /* offline cache unavailable */ });
-      });
+  
+<script>
+  if ('serviceWorker' in navigator &&
+      (location.protocol === 'https:' ||
+       location.hostname === 'localhost')) {
+
+    var s2bReloadingForUpdate = false;
+
+    function s2bShowWaitingUpdate(registration) {
+      if (registration &&
+          registration.waiting &&
+          navigator.serviceWorker.controller) {
+
+        window.s2bWaitingWorker = registration.waiting;
+
+        if (window.s2bUpdateReady) {
+          window.s2bUpdateReady();
+        }
+      }
     }
-  </script>
+
+    navigator.serviceWorker.addEventListener(
+      'controllerchange',
+      function () {
+        if (s2bReloadingForUpdate) return;
+
+        s2bReloadingForUpdate = true;
+        window.location.reload();
+      }
+    );
+
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js')
+        .then(function (registration) {
+
+          s2bShowWaitingUpdate(registration);
+
+          registration.addEventListener(
+            'updatefound',
+            function () {
+              var newWorker = registration.installing;
+              if (!newWorker) return;
+
+              newWorker.addEventListener(
+                'statechange',
+                function () {
+                  if (
+                    newWorker.state === 'installed' &&
+                    navigator.serviceWorker.controller
+                  ) {
+                    s2bShowWaitingUpdate(registration);
+                  }
+                }
+              );
+            }
+          );
+
+          registration.update().catch(function () {});
+        })
+        .catch(function () {});
+    });
+  }
+</script>
+  
 </body>
 </html>
