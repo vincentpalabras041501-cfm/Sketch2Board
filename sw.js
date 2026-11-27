@@ -1,7 +1,7 @@
-
 'use strict';
 
-const CACHE_NAME = 'sketch2board-v1';
+// Change this version for each significant release.
+const CACHE_NAME = 'sketch2board-v2';
 
 const APP_SHELL = [
   './',
@@ -14,8 +14,14 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
   );
+});
+
+// Wait for the user's approval before activating.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {
@@ -77,4 +83,3 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
-          
