@@ -1,6 +1,5 @@
 'use strict';
 
-// Change this version for each significant release.
 const CACHE_NAME = 'sketch2board-v2';
 
 const APP_SHELL = [
@@ -10,6 +9,7 @@ const APP_SHELL = [
   './icon.svg'
 ];
 
+/* Install the new service worker */
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -17,13 +17,14 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Wait for the user's approval before activating.
+/* Activate only when the user approves the update */
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
 
+/* Remove old Sketch2Board caches */
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
@@ -39,6 +40,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+/* Handle app requests */
 self.addEventListener('fetch', (event) => {
   const request = event.request;
 
@@ -52,6 +54,7 @@ self.addEventListener('fetch', (event) => {
     !url.pathname.startsWith(scope.pathname)
   ) return;
 
+  /* Always try the network first for page navigation */
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -68,6 +71,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  /* Use cached files when available */
   event.respondWith(
     caches.match(request).then(cached => {
       if (cached) return cached;
